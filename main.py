@@ -1,9 +1,19 @@
 from os import environ
 from telebot.async_telebot import AsyncTeleBot
 import asyncio
+from pymongo import MongoClient
 
+
+# telebot setup
 botToken = environ['token']
 bot = AsyncTeleBot(botToken,  parse_mode="Markdown")
+
+# mongodb client setup
+client = MongoClient("mongodb+srv://tkt_bot_version1:{}@cluster0.tu30q.mongodb.net/myFirstDatabase?retryWrites=true&w=majority".format(environ['pw']))
+db = client["mastermind_bot"]
+room_db = db["room"]
+stats_db = db["stats"]
+
 
 # open a room for gaming
 @bot.message_handler(commands="open")
