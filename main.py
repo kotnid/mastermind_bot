@@ -2,7 +2,7 @@ from os import environ
 from telebot.async_telebot import AsyncTeleBot
 import asyncio
 from pymongo import MongoClient
-
+from uuid import uuid4
 
 # telebot setup
 botToken = environ['token']
@@ -14,11 +14,46 @@ db = client["mastermind_bot"]
 room_db = db["room"]
 stats_db = db["stats"]
 
+# check if account is created 
+async def check_ac(message):
+    id = message.from_user.id
+    myquery = {"_id" : id}
+
+    if stats_db.count_document(myquery) == 0 :
+        data = {"_id" : id , "win":0 , "room": ""}
+        stats_db.insert_one(data)
+
+# check if user is in a room
+async def check_room(message):
+    id = message.from_user.id
+    myquery = {"_id" : id}
+
+    data = stats_db.find(myquery)
+    if data["room"] != "":
+        return True
+    else :
+        return False
+
+
 
 # open a room for gaming
 @bot.message_handler(commands="open")
 async def open(message):
-    pass
+    check_ac(message)
+    if check_room(message):
+        await bot.reply(message , "You already inside a room :/")
+    else:
+        room_num = str(uuid4()).replace("-","").upper()[0:4]
+        owner = message.from_user.id
+
+        data = {"_id":room_num , "owner": owner , "players" : [id]}
+        room_db.insert_one(data)
+
+        stats_db.update_one({"_id" : id } , {"$set" : {"room" : room_num}})
+
+        await bot.reply_to(message , f"Room {room_num} opened")
+
+         
 
 # join a room 
 @bot.message_handler(commands="join")
