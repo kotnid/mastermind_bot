@@ -30,9 +30,16 @@ async def check_room(message):
 
     data = stats_db.find(myquery)
     if data["room"] != "":
-        return True
+        return data["room"]
     else :
         return False
+
+# check owner
+async def check_owner(room_num):
+    myquery = {"_id" : id}
+    data = room_db.find(myquery)
+
+    return data["owner"][1]
 
 
 
@@ -40,13 +47,14 @@ async def check_room(message):
 @bot.message_handler(commands="open")
 async def open(message):
     check_ac(message)
-    if check_room(message):
+    if check_room(message) != False:
         await bot.reply(message , "You already inside a room :/")
     else:
         room_num = str(uuid4()).replace("-","").upper()[0:4]
         owner = message.from_user.id
+        name = message.chat.username
 
-        data = {"_id":room_num , "owner": owner , "players" : [id]}
+        data = {"_id":room_num , "owner": [name , owner] , "players" : [[name , owner]]}
         room_db.insert_one(data)
 
         stats_db.update_one({"_id" : id } , {"$set" : {"room" : room_num}})
@@ -59,8 +67,8 @@ async def open(message):
 @bot.message_handler(commands="join")
 async def join(message):
     check_ac(message)
-    if check_room(message):
-        await bot.reply(message , "You alread join a room :/")
+    if check_room(message) != False:
+        await bot.reply_to(message , "You alread join a room :/")
     else:
         room_num = message.chat.replace("/join " , "")
         myquery = {"_id" : room_num}
@@ -71,11 +79,39 @@ async def join(message):
             stats_db.update_one({"_id" : message.chat.id } , {"$set" : {"room" : room_num}})
 
             data = room_db.find(myquery)
-            for id in data["players"]:
-                await bot.reply_to(id , "{} has joined the room {}".format(message.chat.username , room_num))
-            stats_db.update_one({"_id" : room_num } , {"$set" : {"room" : room_num}})
+            for player_list in data["players"]:
+                await bot.reply_to(player_list[1] , "{} has joined the room {}".format(message.chat.username , room_num))
 
+            stats_db.update_one({"_id" : room_num } , {"$set" : {"room" : room_num}})
+            room_db.update_one({"_id" : room_num} , {"$set" : {"plauers" : data["players"].append([message.chat.username,message.from_user.id])}})
             await bot.reply_to(message , f"Room {room_num} joined")
+
+#kick player in room
+@bot.message_handler(commands="kick")
+async def kick(message):
+    check_ac(message)
+    if check_room(message) != False:
+        myquery = {"_id" : check_room(message)}
+        data = room_db.find(myquery)
+
+        if check_owner(data["_id"]) == message.from_user.id:
+            player = message.text.replace("/kick ","")
+
+            for player_list in data["players"]:
+                if player in player_list:
+                    data["players"] = data["players"].remove(player_list)
+
+                    for player_list2 in data["players"]:
+                        await bot.reply_to(player_list2 , "{} has been removed {}".format(player))
+                    return ""
+
+            await bot.reply_to(message , f"No player named {player}") 
+                   
+        else:
+            await bot.reply_to(message , "You are not the owner of the room")
+
+    else:
+        await bot.reply_to(message , "You are not inside a room")
 
 # start the game
 @bot.message_handler(commands="start")
