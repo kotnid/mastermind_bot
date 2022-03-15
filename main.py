@@ -1,4 +1,5 @@
 from os import environ
+from tabnanny import check
 from telebot.async_telebot import AsyncTeleBot
 import asyncio
 from pymongo import MongoClient
@@ -180,11 +181,18 @@ async def room(message):
 # show player stats
 @bot.message_handler(commands="stats")
 async def stats(message):
-    pass
+    check_ac(message)
+
+    myquery = {"_id" : message.chat.id}
+    data = stats_db.find(myquery)
+
+    await bot.reply_to(message , "Player {} stats".format(data["name"]) + "\n" + "wins : {}".format(data["win"]) + "\n" + "Current room : {}".format(data["room"]))
 
 # show the leaderboard
 @bot.message_handler(commands="board")
 async def board(message):
+    check_ac(message)
+
     number = message.text.replace("/board " ,"")
     data = stats_db.find().sort("win" , -1).limit(int(number))
     
