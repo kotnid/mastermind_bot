@@ -49,19 +49,42 @@ async def em_to_num(arr):
 
     for em in arr:
         if em == "\ud83d\udfe5": #red
-            arr.append(1)
+            ans.append(1)
         elif em == "\ud83d\udfe7": #orange
-            arr.append(2)  
+            ans.append(2)  
         elif em == "\ud83d\udfe8": #yellow
-            arr.append(3)
+            ans.append(3)
         elif em == "\ud83d\udfe9": #green
-            arr.append(4)
+            ans.append(4)
         elif em == "\ud83d\udfe6": #blue
-            arr.append(5)
+            ans.append(5)
         elif em == "\ud83d\udfea": #purple
-            arr.append(6)
+            ans.append(6)
         elif em == "\ud83d\udfeb": #brown
-            arr.append(7)
+            ans.append(7)
+
+    return ans
+
+async def num_to_em(arr):
+    ans = []
+
+    for em in arr:
+        if em == 1: #red
+            ans.append('\U0001F7E5')
+        elif em == 2: #orange
+            ans.append('\U0001F7E7')  
+        elif em == 3: #yellow
+            ans.append('\U0001F7E8')
+        elif em == 4: #green
+            ans.append('\U0001F7E9')
+        elif em == 5: #blue
+            ans.append('\U0001F7E6')
+        elif em == 6: #purple
+            ans.append('\U0001F7EA')
+        elif em == 7: #brown
+            ans.append('\U0001F7EB')
+    
+    return ans
 
 # open a room for gaming
 @bot.message_handler(commands="open")
@@ -184,8 +207,10 @@ async def guess(message):
             await bot.reply_to(message , "You are the picker!")
 
         else:
-            
-            if 1 == 1 :
+            emojis = message.text.replace("/guess " , "").split()
+            input = em_to_num(emojis)
+
+            if input == data["code"] :
                 for player_list in data["players"]:
                     await bot.send_message(player_list[1] , "Player {} won the game".format(message.chat.username))
                     if message.from_user.id in player_list:
@@ -194,6 +219,8 @@ async def guess(message):
                 stats_db.update_one({"_id" : message.from_user.id} , {"$inc" : {"win" : 1}})
                 
             else:
+
+
                 for player_list in data["players"]:
                     if message.from_user.id in player_list:
                         if player_list[2] == 12 :
