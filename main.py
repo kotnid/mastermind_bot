@@ -86,9 +86,9 @@ async def num_to_em(arr):
         elif em == 7: #brown
             ans.append('\U0001F7EB')
         elif em == 8:
-            ans.append("\U0002B1B")
+            ans.append('\U00002B1B')
         elif em == 9:
-            ans.append("\U0002B1C")
+            ans.append('\U00002B1C')
     return ans
 
 # open a room for gaming
