@@ -409,13 +409,11 @@ async def board(message):
     check_ac(message)
 
     number = message.text.replace('/board ' ,'')
-    data = stats_db.find_one().sort('win' , -1).limit(int(number))
+    data = stats_db.find().sort('win' , -1).limit(int(number))
     
-    await bot.reply_to(message , f'Here is the top {number} players')
-
-    msg = ''
+    msg =  f'Here is the top {number} players'+'\n'+'\n'
     for i in range(int(number)):
-        msg += '{}. {} with {} wins'.format(i , data[i]['name'] , data[i]['win']) + '\n'
+        msg += '{}. {} with {} wins'.format(i+1 , data[i]['name'] , data[i]['win']) + '\n'
 
     await bot.reply_to(message , msg)
 
