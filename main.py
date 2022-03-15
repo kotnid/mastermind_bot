@@ -21,7 +21,10 @@ def check_ac(message):
     id = message.from_user.id
     myquery = {'_id' : id}
     if stats_db.count_documents(myquery) == 0 :
-        data = {'_id' : id , 'win':0 , 'room': '' , 'name' : message.chat.username}
+        if message.chat.username == None:
+            data = {'_id' : id , 'win':0 , 'room': '' , 'name' : message.chat.username}
+        else:
+            data = {'_id' : id , 'win':0 , 'room': '' , 'name' : message.chat.first_name}
         stats_db.insert_one(data)
 
 # check if user is in a room
@@ -44,21 +47,20 @@ def check_owner(room_num):
 # emoji to number
 def em_to_num(arr):
     ans = []
-
     for em in arr:
-        if em == '\ud83d\udfe5': #red
+        if em == '🟥': #red
             ans.append(1)
-        elif em == '\ud83d\udfe7': #orange
+        elif em == '🟧': #orange
             ans.append(2)  
-        elif em == '\ud83d\udfe8': #yellow
+        elif em == '🟨': #yellow
             ans.append(3)
-        elif em == '\ud83d\udfe9': #green
+        elif em == '🟩': #green
             ans.append(4)
-        elif em == '\ud83d\udfe6': #blue
+        elif em == '🟦': #blue
             ans.append(5)
-        elif em == '\ud83d\udfea': #purple
+        elif em == '🟪': #purple
             ans.append(6)
-        elif em == '\ud83d\udfeb': #brown
+        elif em == '🟫': #brown
             ans.append(7)
 
     return ans
@@ -69,23 +71,23 @@ def num_to_em(arr):
 
     for em in arr:
         if em == 1: #red
-            ans.append('\U0001F7E5')
+            ans.append('🟥')
         elif em == 2: #orange
-            ans.append('\U0001F7E7')  
+            ans.append('🟧')  
         elif em == 3: #yellow
-            ans.append('\U0001F7E8')
+            ans.append('🟨')
         elif em == 4: #green
-            ans.append('\U0001F7E9')
+            ans.append('🟩')
         elif em == 5: #blue
-            ans.append('\U0001F7E6')
+            ans.append('🟦')
         elif em == 6: #purple
-            ans.append('\U0001F7EA')
+            ans.append('🟪')
         elif em == 7: #brown
-            ans.append('\U0001F7EB')
+            ans.append('🟫')
         elif em == 8:
-            ans.append('\U00002B1B')
+            ans.append('⬛️')
         elif em == 9:
-            ans.append('\U00002B1C')
+            ans.append('⬜️')
     return ans
 
 # Information of the bot
@@ -204,6 +206,7 @@ async def start(message):
 
             if len(data['players']) == 1:
                 await bot.reply_to(message , 'Due to only 1 player , the code pegs will be maken by the bot')
+                await bot.reply_to(message , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
 
                 code = []
                 for i in range(5):
@@ -240,7 +243,7 @@ async def guess(message):
         data = room_db.find_one(myquery)
 
 
-        if data['code'] == '':
+        if data['code'] == [] :
             await bot.reply_to(message , "Game haven't start yet or picker haven't decide yet")
 
         elif data['picker'][1]  == message.from_user.id :
@@ -271,40 +274,40 @@ async def guess(message):
                             output.append(8)
                             input[i] = 0 
                             data['code'][i] = 0
+
+                    for i in range(1 , 8):
+                        if input.count(i) > data['code'].count(i):
+                            output.extend(9 for x in range(data['code'].count(i)))
+                        elif input.count(i) <= data['code'].count(i):
+                            output.extend(9 for x in range(input.count(i)))
                     
-                    for i in range(1 , 7):
-                        if input.count(i) > data['code'][i].count(i):
-                            output.extend(9 for i in range(data['code'][i].count(i)))
-                        elif input.count(i) <= data['code'][i].count(i):
-                            output.extend(9 for i in range(input.count(i)))
-                        
                     emojis = num_to_em(output)
                     msg = 'Reaction : '
 
                     for emoji in emojis:
-                        msg += emoji + '\n'
+                        msg += emoji + ' '
 
                     emojis2 = num_to_em(input)
                     msg2 = 'Code entered : '
 
                     for emoji2 in emojis2:
-                        msg2 += emoji2 + '\n'
+                        msg2 += emoji2 + ' '
 
                     await bot.reply_to(message , msg2 + '\n' + msg )
                         
                     for player_list in data['players']:
                         if message.from_user.id in player_list:
-                            if player_list[2] == 12 :
+                            if player_list[2] == 11 :
                                 await bot.reply_to(message , 'Oof it is round 12 already so you lost')
                                 stats_db.update_one({'_id' : data['picker'][1]} , {'$inc' : {'win' : 1}})
-                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'player.$' : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'players.$' : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
 
-                            elif player_list[2] == 13:
+                            elif player_list[2] == 12:
                                 await bot.reply_to(message , 'Pls wait until the game ended')
 
                             else:
-                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'player.$' : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
-                                await bot.reply_to(message , f'It is round {player_list[2]} now')
+                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'players.$' : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                                await bot.reply_to(message , 'It is round {} now'.format(player_list[2]+2))
                                 # add inline keyboard (option : guess , leave , stats)
 
     else:
@@ -319,7 +322,6 @@ async def end(message):
         if check_owner(check_room(message.from_user.id)) == message.from_user.id:
             myquery = {'_id' : check_room(message.from_user.id)}
             data = room_db.find_one(myquery)
-            print("???")
             players_data = []
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Owner has ended the game')
@@ -422,7 +424,6 @@ async def stats(message):
 
     myquery = {'_id' : message.from_user.id}
     data = stats_db.find_one(myquery)
-    print(data)
     await bot.reply_to(message , 'Player {} stats'.format(data['name']) + '\n' + 'wins : {}'.format(data['win']) + '\n' + 'Current room : {}'.format(data['room']))
 
 # show the leaderboard
