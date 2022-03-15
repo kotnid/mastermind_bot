@@ -130,7 +130,7 @@ async def open(message):
         data = {'_id':room_num , 'owner': [name , owner] , 'players' : [[name , owner , 0]] , 'picker' : [] , 'code' : []}
         room_db.insert_one(data)
 
-        stats_db.update_one({'_id' : id } , {'$set' : {'room' : room_num}})
+        stats_db.update_one({'_id' : message.from_user.id } , {'$set' : {'room' : room_num}})
 
         await bot.reply_to(message , f'Room {room_num} opened')
 
