@@ -343,6 +343,7 @@ async def leave(message):
         myquery = {'_id' : check_room(message.from_user.id)}
         data = room_db.find_one(myquery)
         player_data = []
+        room_num = data["_id"]
 
         for player_list in data['players']:
             await bot.send_message(player_list[1] , f'Player {message.chat.username} has left the room')
@@ -353,11 +354,11 @@ async def leave(message):
         room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_data)}})
         stats_db.update_one({'_id' : message.from_user.id} , {'$set' : {'room' : ''}})
 
-        if len(data['players']) == 1:
-            room_db.delete_one(myquery)
+        if len(data['players']) == 0:
+            room_db.delete_one({'_id' : room_num})
 
         elif check_owner(check_room(message.from_user.id)) == message.from_user.id:
-            myquery = {'_id' : check_room(message.from_user.id)}
+            myquery = {'_id' : data['_id']}
             data = room_db.find_one(myquery)
 
             picker = choice(data['players'])
@@ -378,14 +379,15 @@ async def close(message):
         if check_owner(check_room(message.from_user.id)) == message.from_user.id:
             myquery = {'_id' : check_room(message.from_user.id)}
             data = room_db.find_one(myquery)
+            room_num = data['_id']
 
             for player_list in data['players']:
-                await bot.send_message(player_list[1] , 'Owner has closen the room')
+                await bot.send_message(player_list[1] , 'Owner has close the room')
 
                 stats_db.update_one({'_id' : player_list[1]} , {'$set' : {'room' : ''}})
 
-            room_db.delete_one({'_id' : check_room(message.from_user.id)})
-
+            room_db.delete_one({'_id' : room_num})
+            
         else:
            await bot.reply_to(message , 'You are not the owner of the room') 
 
