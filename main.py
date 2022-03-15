@@ -102,7 +102,7 @@ Command available:
         /open - open a room
         /join - join a room
         /kick - kick player in room
-        /start - start a game
+        /start_game - start a game
         /guess - guess a code pegs
         /end - end a game  
         /leave - leave a room
@@ -143,7 +143,7 @@ async def join(message):
     if check_room(message.from_user.id) != False:
         await bot.reply_to(message , 'You alread inside a room :/')
     else:
-        room_num = message.chat.replace('/join ' , '')
+        room_num = message.text.replace('/join ' , '')
         myquery = {'_id' : room_num}
 
         if room_db.find_one(myquery) == 0:
@@ -191,7 +191,7 @@ async def kick(message):
         await bot.reply_to(message , 'You are not inside a room')
 
 # start the game
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start_game'])
 async def start(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
@@ -239,11 +239,12 @@ async def guess(message):
         myquery = {'_id' : check_room(message.from_user.id)}
         data = room_db.find_one(myquery)
 
-        if data['picker'][1]  == message.from_user.id :
-            await bot.reply_to(message , 'You are the picker!')
 
-        elif data['code'] == '':
+        if data['code'] == '':
             await bot.reply_to(message , "Game haven't start yet or picker haven't decide yet")
+
+        elif data['picker'][1]  == message.from_user.id :
+            await bot.reply_to(message , 'You are the picker!')
 
         else:
             emojis = message.text.replace('/guess ' , '').split()
@@ -322,11 +323,9 @@ async def end(message):
             players_data = []
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Owner has ended the game')
-
-                stats_db.update_one({'_id' : player_list[1]} , {'$set' : {'room' : ''}})
                 players_data.append([player_list[0] , player_list[1] , 0])   
 
-            room_db.update_one({'_id' : data['_id']} , {'players' : players_data})
+            room_db.update_one({'_id' : data['_id']} , { '$set' : {'players' : players_data , 'code' : [] , 'picker' : []}})
 
         else:
            await bot.reply_to(message , 'You are not the owner of the room') 
