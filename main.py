@@ -43,7 +43,25 @@ async def check_owner(room_num):
 
     return data["owner"][1]
 
+# emoji to number
+async def em_to_num(arr):
+    ans = []
 
+    for em in arr:
+        if em == "\ud83d\udfe5": #red
+            arr.append(1)
+        elif em == "\ud83d\udfe7": #orange
+            arr.append(2)  
+        elif em == "\ud83d\udfe8": #yellow
+            arr.append(3)
+        elif em == "\ud83d\udfe9": #green
+            arr.append(4)
+        elif em == "\ud83d\udfe6": #blue
+            arr.append(5)
+        elif em == "\ud83d\udfea": #purple
+            arr.append(6)
+        elif em == "\ud83d\udfeb": #brown
+            arr.append(7)
 
 # open a room for gaming
 @bot.message_handler(commands="open")
@@ -134,7 +152,7 @@ async def start(message):
                 for i in range(5):
                     code.append(randint(1,7))
 
-                room_db.update_one({"_id" : check_room(message)} , {"$set" : {"picker" : "bot" , "code" : code}})
+                room_db.update_one({"_id" : check_room(message)} , {"$set" : {"picker" : ["bot","id"] , "code" : code}})
 
             else:
                 picker = choice(data["players"])
@@ -156,7 +174,43 @@ async def start(message):
 # guess the mastermind
 @bot.message_handler(commands="guess")
 async def guess(message):
-    pass
+    check_ac(message)
+
+    if check_room(message) != False:
+        myquery = {"_id" : check_room(message)}
+        data = room_db.find(myquery)
+
+        if data["picker"][1]  == message.from_user.id :
+            await bot.reply_to(message , "You are the picker!")
+
+        else:
+            
+            if 1 == 1 :
+                for player_list in data["players"]:
+                    await bot.send_message(player_list[1] , "Player {} won the game".format(message.chat.username))
+                    if message.from_user.id in player_list:
+                        room_db.update_one({"_id" : check_room(message) , "players" : player_list} , { "$set" : {"player.$" : [player_list[0] , player_list[1] , 0]}})
+                
+                stats_db.update_one({"_id" : message.from_user.id} , {"$inc" : {"win" : 1}})
+                
+            else:
+                for player_list in data["players"]:
+                    if message.from_user.id in player_list:
+                        if player_list[2] == 12 :
+                            await bot.reply_to(message , "Oof it is round 12 already so you lost")
+                            stats_db.update_one({"_id" : data["picker"][1]} , {"$inc" : {"win" : 1}})
+                            room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+
+                        elif player_list[2] == 13:
+                            await bot.reply_to(message , "Pls wait until the game ended")
+
+                        else:
+                            room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                            await bot.reply_to(message , f"It is round {player_list[2]} now , what is your option?")
+                            # add inline keyboard (option : guess , leave , stats)
+
+    else:
+        await bot.reply_to(message , "You are not inside a room")
 
 # end the game
 @bot.message_handler(commands="end")
@@ -242,7 +296,7 @@ async def room(message):
         for player_list in data["player"]:
             players.append(player_list[0] + " in round " + player_list[2])
 
-        await bot.reply_to(message , "Room {} stats".format(data["_id"]) + "\n" + "owner : ".format(data["owner"]) + "\n" + "picker : " + "\n" + "players : " + players)
+        await bot.reply_to(message , "Room {} stats".format(data["_id"]) + "\n" + "owner : ".format(data["owner"]) + "\n" + "picker : ".format(data["picker"][0]) + "\n" + "players : " + players)
     else:
         await bot.reply_to(message , "You are not inside a room")    
 
