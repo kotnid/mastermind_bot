@@ -64,6 +64,7 @@ async def em_to_num(arr):
 
     return ans
 
+#number to emoji
 async def num_to_em(arr):
     ans = []
 
@@ -88,8 +89,31 @@ async def num_to_em(arr):
             ans.append('\U00002B1C')
     return ans
 
+# Information of the bot
+@bot.message_handler(commands=["start","help"])
+async def start(message):
+    await bot.reply_to(
+        "Mastermind Bot" + "\n \n" +
+        "The bot is made by kotnid , code available : https://github.com/kotnid/mastermind_bot"
+        "Command available: " + "\n" +
+        "/help - show this message" + "\n" + 
+        "/open - open a room" + "\n" +
+        "/join - join a room" + "\n" +
+        "/kick - kick player in room" + "\n" +
+        "/start - start a game" + "\n" +
+        "/guess - guess a code pegs" + "\n" +
+        "/end - end a game" + "\n" + 
+        "/leave - leave a room" + "\n" +
+        "/close - close a room" + "\n" +
+        "/stats - show player stats" + "\n" +
+        "/board - show leaderboard" + "\n \n" +
+        "If you have any problem , pls contact @tkt0506 ")
+
+
+
+
 # open a room for gaming
-@bot.message_handler(commands="open")
+@bot.message_handler(commands=["open"])
 async def open(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
@@ -109,7 +133,7 @@ async def open(message):
          
 
 # join a room 
-@bot.message_handler(commands="join")
+@bot.message_handler(commands=["join"])
 async def join(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
@@ -132,7 +156,7 @@ async def join(message):
             await bot.reply_to(message , f"Room {room_num} joined")
 
 #kick player in room
-@bot.message_handler(commands="kick")
+@bot.message_handler(commands=["kick"])
 async def kick(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
@@ -159,7 +183,7 @@ async def kick(message):
         await bot.reply_to(message , "You are not inside a room")
 
 # start the game
-@bot.message_handler(commands="start")
+@bot.message_handler(commands=["start"])
 async def start(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
@@ -199,7 +223,7 @@ async def start(message):
         await bot.reply_to(message , "You are not inside a room")
 
 # guess the mastermind
-@bot.message_handler(commands="guess")
+@bot.message_handler(commands=["guess"])
 async def guess(message):
     check_ac(message)
 
@@ -278,7 +302,7 @@ async def guess(message):
         await bot.reply_to(message , "You are not inside a room")
 
 # end the game
-@bot.message_handler(commands="end")
+@bot.message_handler(commands=["end"])
 async def end(message):
     check_ac(message)
 
@@ -303,7 +327,7 @@ async def end(message):
         await bot.reply_to(message , "You are not inside a room")
 
 # leave the room
-@bot.message_handler(commands="leave")
+@bot.message_handler(commands=["leave"])
 async def leave(message):
     check_ac(message)
 
@@ -326,7 +350,7 @@ async def leave(message):
 
 
 # close the room
-@bot.message_handler(commands="close")
+@bot.message_handler(commands=["close"])
 async def close(message):
     check_ac(message)
 
@@ -349,7 +373,7 @@ async def close(message):
         await bot.reply_to(message , "You are not inside a room")
 
 # show room information
-@bot.message_handler(commands="room")
+@bot.message_handler(commands=["room"])
 async def room(message):
     check_ac(message)
 
@@ -366,7 +390,7 @@ async def room(message):
         await bot.reply_to(message , "You are not inside a room")    
 
 # show player stats
-@bot.message_handler(commands="stats")
+@bot.message_handler(commands=["stats"])
 async def stats(message):
     check_ac(message)
 
@@ -376,7 +400,7 @@ async def stats(message):
     await bot.reply_to(message , "Player {} stats".format(data["name"]) + "\n" + "wins : {}".format(data["win"]) + "\n" + "Current room : {}".format(data["room"]))
 
 # show the leaderboard
-@bot.message_handler(commands="board")
+@bot.message_handler(commands=["board"])
 async def board(message):
     check_ac(message)
 
