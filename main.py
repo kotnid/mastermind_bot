@@ -3,6 +3,7 @@ from telebot.async_telebot import AsyncTeleBot
 import asyncio
 from pymongo import MongoClient
 from uuid import uuid4
+from random import choice , randint
 
 # telebot setup
 botToken = environ['token']
@@ -20,7 +21,7 @@ async def check_ac(message):
     myquery = {"_id" : id}
 
     if stats_db.count_document(myquery) == 0 :
-        data = {"_id" : id , "win":0 , "room": ""}
+        data = {"_id" : id , "win":0 , "room": "" , "name" : message.chat.username}
         stats_db.insert_one(data)
 
 # check if user is in a room
@@ -54,7 +55,7 @@ async def open(message):
         owner = message.from_user.id
         name = message.chat.username
 
-        data = {"_id":room_num , "owner": [name , owner] , "players" : [[name , owner]]}
+        data = {"_id":room_num , "owner": [name , owner] , "players" : [[name , owner , 0]] , "picker" : [] , "code" : []}
         room_db.insert_one(data)
 
         stats_db.update_one({"_id" : id } , {"$set" : {"room" : room_num}})
@@ -80,7 +81,7 @@ async def join(message):
 
             data = room_db.find(myquery)
             for player_list in data["players"]:
-                await bot.reply_to(player_list[1] , "{} has joined the room {}".format(message.chat.username , room_num))
+                await bot.send_message(player_list[1] , "{} has joined the room {}".format(message.chat.username , room_num))
 
             stats_db.update_one({"_id" : room_num } , {"$set" : {"room" : room_num}})
             room_db.update_one({"_id" : room_num} , {"$set" : {"plauers" : data["players"].append([message.chat.username,message.from_user.id])}})
@@ -102,11 +103,11 @@ async def kick(message):
                     data["players"] = data["players"].remove(player_list)
 
                     for player_list2 in data["players"]:
-                        await bot.reply_to(player_list2 , "{} has been removed {}".format(player))
+                        await bot.send_message(player_list2[1] , "{} has been removed {}".format(player))
                     return ""
 
             await bot.reply_to(message , f"No player named {player}") 
-                   
+
         else:
             await bot.reply_to(message , "You are not the owner of the room")
 
@@ -116,7 +117,40 @@ async def kick(message):
 # start the game
 @bot.message_handler(commands="start")
 async def start(message):
-    pass
+    check_ac(message)
+    if check_room(message) != False:
+        myquery = {"_id" : check_room(message)}
+        data = room_db.find(myquery)
+
+        if check_owner(data["_id"]) == message.from_user.id:
+            for player_list in data["players"]:
+                await bot.send_message(player_list[1] , "Game start!")
+
+            if len(data["players"]) == 1:
+                await bot.reply_to(message , "Due to only 1 player , the code pegs will be maken by the bot")
+
+                code = []
+                for i in range(5):
+                    code.append(randint(1,7))
+
+                room_db.update_one({"_id" : check_room(message)} , {"$set" : {"picker" : "bot" , "code" : code}})
+
+            else:
+                picker = choice(data["players"])
+                for player_list in data["players"]:
+                    await bot.send_message(player_list[1] , "{} is chosen to make the code pegs".format(picker[0])) 
+                await bot.send_message(picker[1] , "Pls enter the code pegs")
+
+
+
+
+
+
+        else:
+            await bot.reply_to(message , "You are not the owner of the room")
+
+    else:
+        await bot.reply_to(message , "You are not inside a room")
 
 # guess the mastermind
 @bot.message_handler(commands="guess")
@@ -151,6 +185,16 @@ async def stats(message):
 # show the leaderboard
 @bot.message_handler(commands="board")
 async def board(message):
-    pass
+    number = message.text.replace("/board " ,"")
+    data = stats_db.find().sort("win" , -1).limit(int(number))
+    
+    await bot.reply_to(message , f"Here is the top {number} players")
+
+    msg = ""
+    for i in range(int(number)):
+        msg += "{}. {} with {} wins".format(i , data[i]["name"] , data[i]["win"]) + "\n"
+
+    await bot.reply_to(message , msg)
+
 
 asyncio.run(bot.infinity_polling())
