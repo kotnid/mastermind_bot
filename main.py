@@ -180,13 +180,14 @@ async def kick(message):
         if check_owner(data['_id']) == message.from_user.id:
             player = message.text.replace('/kick ','')
 
-            if player == message.chat.username:
+            if player == message.chat.first_name:
                 await bot.reply_to(message , "Bruh u kick yourself which is illegal")
 
             else:
                 for player_list in data['players']:
                     if player in player_list:
-                        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_list)}})
+                        data['players'].remove(player_list)
+                        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players']}})
                         
                         info("User {} with id {} removed player {} with id {} out of room {}".format(message.chat.first_name , message.from_user.id , player_list[0] , player_list[1] , data['_id']))
                         for player_list2 in data['players']:
@@ -289,7 +290,7 @@ async def guess(message):
 
             if input == data['code'] :
                 for player_list in data['players']:
-                    await bot.send_message(player_list[1] , 'User {} with id {} won the game '.format(message.chat.username , message.from_user.id))
+                    await bot.send_message(player_list[1] , 'User {} with id {} won the game '.format(message.chat.first_name , message.from_user.id))
                     if message.from_user.id in player_list:
                         room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list} , { '$set' : {'player.$' : [player_list[0] , player_list[1] , 0]}})
                 
@@ -384,12 +385,13 @@ async def leave(message):
         room_num = data["_id"]
 
         for player_list in data['players']:
-            await bot.send_message(player_list[1] , f'Player {message.chat.username} has left the room')
+            await bot.send_message(player_list[1] , f'Player {message.chat.first_name} has left the room')
 
-            if message.chat.username in player_list :
+            if message.chat.first_name in player_list :
                 player_data = player_list
 
-        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_data)}})
+        data['players'].remove(player_data)
+        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players']}})
         stats_db.update_one({'_id' : message.from_user.id} , {'$set' : {'room' : ''}})
         info("User {} with id {} left the room {}".format(message.chat.first_name , message.from_user.id , data['_id']))
 
@@ -397,14 +399,16 @@ async def leave(message):
             room_db.delete_one({'_id' : room_num})
             info("Room {} closed".format(room_num))
 
-        elif check_owner(check_room(message.from_user.id)) == message.from_user.id:
+        elif check_owner(room_num) == message.from_user.id:
             myquery = {'_id' : data['_id']}
             data = room_db.find_one(myquery)
 
             picker = choice(data['players'])
-
+            print(picker)
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Player {} has become new owner'.format(picker[0]))
+            
+            room_db.update_one({'_id' : data['_id']} , {'$set' : {'owner' : [picker[0] , picker[1]]}})
             info('Player {} has become new owner in room {}'.format(picker[0] , room_num))
     else:
         await bot.reply_to(message , 'You are not inside a room')
@@ -517,7 +521,7 @@ def code_next_step2(message):
         room_db.update_one({'_id' : room_num} , {'$set' : {'code' : input}})
 
         for player_list in data['players']:
-            bot.reply_to(player_list[1] , 'Player {} has submitted the code pegs , the game start now ~ '.format(message.chat.username))
+            bot.reply_to(player_list[1] , 'Player {} has submitted the code pegs , the game start now ~ '.format(message.chat.first_name))
 
 
 asyncio.run(bot.infinity_polling())
