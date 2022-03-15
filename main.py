@@ -36,7 +36,7 @@ def check_room(id):
 
 # check owner
 def check_owner(room_num):
-    myquery = {'_id' : id}
+    myquery = {'_id' : room_num}
     data = room_db.find_one(myquery)
 
     return data['owner'][1]
@@ -121,7 +121,7 @@ If you have any problem , pls contact tkt0506
 async def open(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
-        await bot.reply(message , 'You already inside a room :/')
+        await bot.reply_to(message , 'You already inside a room :/')
     else:
         room_num = str(uuid4()).replace('-','').upper()[0:4]
         owner = message.from_user.id
@@ -141,7 +141,7 @@ async def open(message):
 async def join(message):
     check_ac(message)
     if check_room(message.from_user.id) != False:
-        await bot.reply_to(message , 'You alread join a room :/')
+        await bot.reply_to(message , 'You alread inside a room :/')
     else:
         room_num = message.chat.replace('/join ' , '')
         myquery = {'_id' : room_num}
@@ -170,15 +170,19 @@ async def kick(message):
         if check_owner(data['_id']) == message.from_user.id:
             player = message.text.replace('/kick ','')
 
-            for player_list in data['players']:
-                if player in player_list:
-                    room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_list)}})
+            if player == message.chat.username:
+                await bot.reply_to(message , "Bruh u kick yourself which is illegal")
 
-                    for player_list2 in data['players']:
-                        await bot.send_message(player_list2[1] , '{} has been removed {}'.format(player))
-                    return ''
+            else:
+                for player_list in data['players']:
+                    if player in player_list:
+                        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_list)}})
 
-            await bot.reply_to(message , f'No player named {player}') 
+                        for player_list2 in data['players']:
+                            await bot.send_message(player_list2[1] , '{} has been removed {}'.format(player))
+                        return ''
+
+                await bot.reply_to(message , f'No player named {player}') 
 
         else:
             await bot.reply_to(message , 'You are not the owner of the room')
@@ -314,7 +318,7 @@ async def end(message):
         if check_owner(check_room(message.from_user.id)) == message.from_user.id:
             myquery = {'_id' : check_room(message.from_user.id)}
             data = room_db.find_one(myquery)
-
+            print("???")
             players_data = []
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Owner has ended the game')
@@ -348,6 +352,18 @@ async def leave(message):
 
         room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_data)}})
         stats_db.update_one({'_id' : message.from_user.id} , {'$set' : {'room' : ''}})
+
+        if len(data['players']) == 1:
+            room_db.delete_one(myquery)
+
+        elif check_owner(check_room(message.from_user.id)) == message.from_user.id:
+            myquery = {'_id' : check_room(message.from_user.id)}
+            data = room_db.find_one(myquery)
+
+            picker = choice(data['players'])
+
+            for player_list in data['players']:
+                await bot.send_message(player_list[1] , 'Player {} has become new owner'.format(picker[0]))
 
     else:
         await bot.reply_to(message , 'You are not inside a room')
