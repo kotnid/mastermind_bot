@@ -214,16 +214,20 @@ async def start(message):
         data = room_db.find_one(myquery)
 
         if check_owner(data['_id']) == message.from_user.id:
-            for player_list in data['players']:
-                await bot.send_message(player_list[1] , 'Game start!')
+            
 
             info("User {} with id {} start game in room {}".format(message.chat.first_name , message.from_user.id , data['_id'] ))
 
-            name = message.text.replace("start_game " , "")
+            name = message.text.replace("/start_game " , "")
+            
+            if data['picker'] != []:
+                await bot.reply_to(message , 'The game start already')
 
-            if len(data['players']) == 1 or name == "bot" :
-                await bot.reply_to(message , 'The code pegs will be maken by the bot')
-                await bot.reply_to(message , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
+            if name == 'bot' or  len(data['players']) == 1 :
+                for player_list in data['players']:
+                    await bot.send_message(player_list[1] , 'Game start!')
+                    await bot.reply_to(player_list[1] , 'The code pegs will be maken by the bot')
+                    await bot.reply_to(player_list[1] , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
 
                 code = []
                 for i in range(5):
@@ -295,7 +299,7 @@ async def guess(message):
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , 'User {} with id {} won the game '.format(message.chat.first_name , message.from_user.id))
                     if message.from_user.id in player_list:
-                        room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list} , { '$set' : {'player.$' : [player_list[0] , player_list[1] , 0]}})
+                        room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list} , { '$set' : {'players.$' : [player_list[0] , player_list[1] , "end"]}})
                 
                 stats_db.update_one({'_id' : message.from_user.id} , {'$inc' : {'win' : 1}})
                 info("User {} with id {} won a game in room {}".format(message.chat.first_name , message.from_user.id ,data['_id']))
@@ -340,9 +344,9 @@ async def guess(message):
                             if player_list[2] == 11 :
                                 await bot.reply_to(message , 'Oof it is round 12 already so you lost')
                                 stats_db.update_one({'_id' : data['picker'][1]} , {'$inc' : {'win' : 1}})
-                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'players.$' : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                                room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'players.$' : [player_list[0] , player_list[1] , "end"]}})
 
-                            elif player_list[2] == 12:
+                            elif player_list[2] == "end":
                                 await bot.reply_to(message , 'Pls wait until the game ended')
 
                             else:
@@ -485,6 +489,8 @@ async def board(message):
     
     msg =  f'Here is the top {number} players'+'\n'+'\n'
     for i in range(int(number)):
+        print(data[i]['name'])
+        print(data[i]['win'])
         msg += '{}. {} with {} wins'.format(i+1 , data[i]['name'] , data[i]['win']) + '\n'
 
     info('User {} with id {} check the leaderboard'.format(str(message.chat.first_name) , str(message.from_user.id)))
