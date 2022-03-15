@@ -385,11 +385,16 @@ async def room(message):
         myquery = check_room(message.from_user.id)
         data = room_db.find_one(myquery)
 
-        players = []
-        for player_list in data['player']:
-            players.append(player_list[0] + ' in round ' + player_list[2])
+        players = ""
+        for player_list in data['players']:
+            players += str(player_list[0]) + ' in round ' + str(player_list[2])
 
-        await bot.reply_to(message , 'Room {} stats'.format(data['_id']) + '\n' + 'owner : '.format(data['owner']) + '\n' + 'picker : '.format(data['picker'][0]) + '\n' + 'players : ' + players)
+        if len(data['picker']) == 0:
+            picker = "None"
+        else:
+            picker = data['picker'][0]
+
+        await bot.reply_to(message , 'Room {} stats'.format(data['_id']) + '\n' + 'owner : {} '.format(data['owner'][0]) + '\n' + 'picker : {} '.format(picker) + '\n' + 'players : ' + '\n'+ players)
     else:
         await bot.reply_to(message , 'You are not inside a room')    
 
