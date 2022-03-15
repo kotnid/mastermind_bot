@@ -186,12 +186,15 @@ async def kick(message):
             else:
                 for player_list in data['players']:
                     if player in player_list:
-                        data['players'].remove(player_list)
-                        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players']}})
-                        
                         info("User {} with id {} removed player {} with id {} out of room {}".format(message.chat.first_name , message.from_user.id , player_list[0] , player_list[1] , data['_id']))
                         for player_list2 in data['players']:
-                            await bot.send_message(player_list2[1] , '{} has been removed {}'.format(player))
+                            await bot.send_message(player_list2[1] , '{} has been removed'.format(player))
+
+                        data['players'].remove(player_list)
+                        room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players']}})
+
+                        stats_db.update_one({'_id' : player_list[1]} , {'$set' : {'room' : ""}})
+
                         return ''
 
                 await bot.reply_to(message , f'No player named {player}') 
