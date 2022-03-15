@@ -5,6 +5,12 @@ import asyncio
 from pymongo import MongoClient
 from uuid import uuid4
 from random import choice , randint
+from logging import info , basicConfig , INFO
+
+# logging config 
+basicConfig(level= INFO,
+            format= '%(asctime)s %(levelname)s %(message)s',
+            datefmt= '%Y-%m-%d %H:%M')
 
 # telebot setup
 botToken = environ['token']
@@ -21,11 +27,9 @@ def check_ac(message):
     id = message.from_user.id
     myquery = {'_id' : id}
     if stats_db.count_documents(myquery) == 0 :
-        if message.chat.username == None:
-            data = {'_id' : id , 'win':0 , 'room': '' , 'name' : message.chat.username}
-        else:
             data = {'_id' : id , 'win':0 , 'room': '' , 'name' : message.chat.first_name}
-        stats_db.insert_one(data)
+            info("User {} with id {} created account".format(message.chat.first_name , str(id)))
+            stats_db.insert_one(data)
 
 # check if user is in a room
 def check_room(id):
@@ -127,13 +131,14 @@ async def open(message):
     else:
         room_num = str(uuid4()).replace('-','').upper()[0:4]
         owner = message.from_user.id
-        name = message.chat.username
+        name = message.chat.first_name
 
         data = {'_id':room_num , 'owner': [name , owner] , 'players' : [[name , owner , 0]] , 'picker' : [] , 'code' : []}
         room_db.insert_one(data)
 
         stats_db.update_one({'_id' : message.from_user.id } , {'$set' : {'room' : room_num}})
 
+        info("User {} with id {} created room {}".format(message.chat.first_name , message.from_user.id , room_num))
         await bot.reply_to(message , f'Room {room_num} opened')
 
          
@@ -146,20 +151,23 @@ async def join(message):
         await bot.reply_to(message , 'You alread inside a room :/')
     else:
         room_num = message.text.replace('/join ' , '')
-        myquery = {'_id' : room_num}
-
-        if room_db.find_one(myquery) == 0:
-            await bot.reply_to(message , 'Invalid room number :< ')
-        else:
+        myquery = {'_id' : str(room_num)}
+        if room_db.count_documents(myquery) == 1:
             stats_db.update_one({'_id' : message.from_user.id } , {'$set' : {'room' : room_num}})
 
             data = room_db.find_one(myquery)
             for player_list in data['players']:
-                await bot.send_message(player_list[1] , '{} has joined the room {}'.format(message.chat.username , room_num))
+                await bot.send_message(player_list[1] , '{} has joined the room {}'.format(message.chat.first_name , room_num))
 
             stats_db.update_one({'_id' : room_num } , {'$set' : {'room' : room_num}})
-            room_db.update_one({'_id' : room_num} , {'$set' : {'players' : data['players'].append([message.chat.username , message.from_user.id , 0])}})
+
+            data['players'].append([message.chat.first_name, message.from_user.id , 0])
+            room_db.update_one({'_id' : room_num} , {'$set' : {'players' : data['players']}})
             await bot.reply_to(message , f'Room {room_num} joined')
+            info("User {} with id {} join room {}".format(message.chat.first_name ,message.from_user.id , room_num))
+        else:
+            await bot.reply_to(message , 'Invalid room number :< ')
+            
 
 #kick player in room
 @bot.message_handler(commands=['kick'])
@@ -179,7 +187,8 @@ async def kick(message):
                 for player_list in data['players']:
                     if player in player_list:
                         room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_list)}})
-
+                        
+                        info("User {} with id {} removed player {} with id {} out of room {}".format(message.chat.first_name , message.from_user.id , player_list[0] , player_list[1] , data['_id']))
                         for player_list2 in data['players']:
                             await bot.send_message(player_list2[1] , '{} has been removed {}'.format(player))
                         return ''
@@ -204,8 +213,12 @@ async def start(message):
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Game start!')
 
-            if len(data['players']) == 1:
-                await bot.reply_to(message , 'Due to only 1 player , the code pegs will be maken by the bot')
+            info("User {} with id {} start game in room {}".format(message.chat.first_name , message.from_user.id , data['_id'] ))
+
+            name = message.text.replace("start_game " , "")
+
+            if len(data['players']) == 1 or name == "bot" :
+                await bot.reply_to(message , 'The code pegs will be maken by the bot')
                 await bot.reply_to(message , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
 
                 code = []
@@ -214,7 +227,7 @@ async def start(message):
 
                 room_db.update_one({'_id' : check_room(message.from_user.id)} , {'$set' : {'picker' : ['bot','id'] , 'code' : code}})
 
-            else:
+            elif name == "ran":
                 picker = choice(data['players'])
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , '{} is chosen to make the code pegs'.format(picker[0])) 
@@ -223,6 +236,25 @@ async def start(message):
                 markup = ReplyKeyboardMarkup(one_time_keyboard=True)
                 markup.add('Enter', 'Choose another one')
                 bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
+
+            else:
+                picker = []
+
+                for player_list in data['players']:
+                    if name in player_list:
+                        picker = player_list
+                
+                if picker == []:
+                    picker = choice(data['players'])
+                
+                for player_list in data['players']:
+                    await bot.send_message(player_list[1] , '{} is chosen to make the code pegs'.format(picker[0])) 
+                await bot.send_message(picker[1] , 'Pls enter the code pegs')
+
+                markup = ReplyKeyboardMarkup(one_time_keyboard=True)
+                markup.add('Enter', 'Choose another one')
+                bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
+                
 
 
 
@@ -253,13 +285,16 @@ async def guess(message):
             emojis = message.text.replace('/guess ' , '').split()
             input = em_to_num(emojis)
             
+            info("User {} with id {} guess {}".format(message.chat.first_name , message.from_user.id  , input))
+
             if input == data['code'] :
                 for player_list in data['players']:
-                    await bot.send_message(player_list[1] , 'Player {} won the game'.format(message.chat.username))
+                    await bot.send_message(player_list[1] , 'User {} with id {} won the game '.format(message.chat.username , message.from_user.id))
                     if message.from_user.id in player_list:
                         room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list} , { '$set' : {'player.$' : [player_list[0] , player_list[1] , 0]}})
                 
                 stats_db.update_one({'_id' : message.from_user.id} , {'$inc' : {'win' : 1}})
+                info("User {} with id {} won a game in room {}".format(message.chat.first_name , message.from_user.id ,data['_id']))
                 
             else:
 
@@ -297,6 +332,7 @@ async def guess(message):
                         
                     for player_list in data['players']:
                         if message.from_user.id in player_list:
+                            info("User {} with id {} in round {} in room {} now ".format(message.chat.first_name , message.from_user.id , player_list[2]+2 , data['_id']))
                             if player_list[2] == 11 :
                                 await bot.reply_to(message , 'Oof it is round 12 already so you lost')
                                 stats_db.update_one({'_id' : data['picker'][1]} , {'$inc' : {'win' : 1}})
@@ -328,6 +364,7 @@ async def end(message):
                 players_data.append([player_list[0] , player_list[1] , 0])   
 
             room_db.update_one({'_id' : data['_id']} , { '$set' : {'players' : players_data , 'code' : [] , 'picker' : []}})
+            info("User {} with id {} ended a game in room {}".format(message.chat.first_name , message.from_user.id , data['_id']))
 
         else:
            await bot.reply_to(message , 'You are not the owner of the room') 
@@ -354,9 +391,11 @@ async def leave(message):
 
         room_db.update_one({'_id' : data['_id']} , {'$set' : {'players' : data['players'].remove(player_data)}})
         stats_db.update_one({'_id' : message.from_user.id} , {'$set' : {'room' : ''}})
+        info("User {} with id {} left the room {}".format(message.chat.first_name , message.from_user.id , data['_id']))
 
         if len(data['players']) == 0:
             room_db.delete_one({'_id' : room_num})
+            info("Room {} closed".format(room_num))
 
         elif check_owner(check_room(message.from_user.id)) == message.from_user.id:
             myquery = {'_id' : data['_id']}
@@ -366,7 +405,7 @@ async def leave(message):
 
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Player {} has become new owner'.format(picker[0]))
-
+            info('Player {} has become new owner in room {}'.format(picker[0] , room_num))
     else:
         await bot.reply_to(message , 'You are not inside a room')
 
@@ -387,6 +426,7 @@ async def close(message):
 
                 stats_db.update_one({'_id' : player_list[1]} , {'$set' : {'room' : ''}})
 
+            info("User {} with id {} close the room {}".format(message.chat.first_name , message.from_user.id , data['_id']))
             room_db.delete_one({'_id' : room_num})
             
         else:
@@ -406,13 +446,14 @@ async def room(message):
 
         players = ""
         for player_list in data['players']:
-            players += str(player_list[0]) + ' in round ' + str(player_list[2])
+            players += str(player_list[0]) + ' in round ' + str(player_list[2])+'\n'
 
         if len(data['picker']) == 0:
             picker = "None"
         else:
             picker = data['picker'][0]
 
+        info("User {} with id {} check the stats of room {}".format(message.chat.first_name , message.from_user.id , data['_id']))
         await bot.reply_to(message , 'Room {} stats'.format(data['_id']) + '\n' + 'owner : {} '.format(data['owner'][0]) + '\n' + 'picker : {} '.format(picker) + '\n' + 'players : ' + '\n'+ players)
     else:
         await bot.reply_to(message , 'You are not inside a room')    
@@ -425,6 +466,7 @@ async def stats(message):
     myquery = {'_id' : message.from_user.id}
     data = stats_db.find_one(myquery)
     await bot.reply_to(message , 'Player {} stats'.format(data['name']) + '\n' + 'wins : {}'.format(data['win']) + '\n' + 'Current room : {}'.format(data['room']))
+    info("User {} with id {} check the stats".format(message.chat.first_name , message.from_user.id))
 
 # show the leaderboard
 @bot.message_handler(commands=['board'])
@@ -438,6 +480,7 @@ async def board(message):
     for i in range(int(number)):
         msg += '{}. {} with {} wins'.format(i+1 , data[i]['name'] , data[i]['win']) + '\n'
 
+    info('User {} with id {} check the leaderboard'.format(str(message.chat.first_name) , str(message.from_user.id)))
     await bot.reply_to(message , msg)
 
 
