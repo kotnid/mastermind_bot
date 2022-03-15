@@ -1,5 +1,6 @@
 from os import environ
 from tabnanny import check
+from black import out
 from telebot.async_telebot import AsyncTeleBot
 import asyncio
 from pymongo import MongoClient
@@ -83,7 +84,10 @@ async def num_to_em(arr):
             ans.append('\U0001F7EA')
         elif em == 7: #brown
             ans.append('\U0001F7EB')
-    
+        elif em == 8:
+            ans.append("\U0002B1B")
+        elif em == 9:
+            ans.append("\U0002B1C")
     return ans
 
 # open a room for gaming
@@ -206,10 +210,13 @@ async def guess(message):
         if data["picker"][1]  == message.from_user.id :
             await bot.reply_to(message , "You are the picker!")
 
+        elif data["code"] == "":
+            await bot.reply_to(message , "Game haven't start yet or picker haven't decide yet")
+
         else:
             emojis = message.text.replace("/guess " , "").split()
             input = em_to_num(emojis)
-
+            
             if input == data["code"] :
                 for player_list in data["players"]:
                     await bot.send_message(player_list[1] , "Player {} won the game".format(message.chat.username))
@@ -220,21 +227,56 @@ async def guess(message):
                 
             else:
 
+                if len(input) != 5:
+                    await bot.reply_to(message , "Invalid input")
+                
+                else:
+                    output = []
 
-                for player_list in data["players"]:
-                    if message.from_user.id in player_list:
-                        if player_list[2] == 12 :
-                            await bot.reply_to(message , "Oof it is round 12 already so you lost")
-                            stats_db.update_one({"_id" : data["picker"][1]} , {"$inc" : {"win" : 1}})
-                            room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                    for i in range(5):
+                        if input[i] == data["code"][i]:
+                            output.append(8)
+                            input[i] = 0 
+                            data["code"][i] = 0
+                    
+                    for i in range(1 , 7):
+                        if input.count(i) > data["code"][i].count(i):
+                            output.extend(9 for i in range(data["code"][i].count(i)))
+                        elif input.count(i) <= data["code"][i].count(i):
+                            output.extend(9 for i in range(input.count(i)))
+                        
+                    emojis = num_to_em(output)
+                    msg = "Reaction : "
 
-                        elif player_list[2] == 13:
-                            await bot.reply_to(message , "Pls wait until the game ended")
+                    for emoji in emojis:
+                        msg += emoji + "\n"
 
-                        else:
-                            room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
-                            await bot.reply_to(message , f"It is round {player_list[2]} now , what is your option?")
-                            # add inline keyboard (option : guess , leave , stats)
+                    emojis2 = num_to_em(input)
+                    msg2 = "Code entered : "
+
+                    for emoji2 in emojis2:
+                        msg2 += emoji2 + "\n"
+
+                    await bot.reply_to(message , msg2 + "\n" + msg )
+                        
+                        
+
+
+
+                    for player_list in data["players"]:
+                        if message.from_user.id in player_list:
+                            if player_list[2] == 12 :
+                                await bot.reply_to(message , "Oof it is round 12 already so you lost")
+                                stats_db.update_one({"_id" : data["picker"][1]} , {"$inc" : {"win" : 1}})
+                                room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+
+                            elif player_list[2] == 13:
+                                await bot.reply_to(message , "Pls wait until the game ended")
+
+                            else:
+                                room_db.update_one({"_id" : check_room(message) , "players" : player_list}, { "$set" : {"player.$" : [player_list[0] , player_list[1] , int(player_list[2])+1]}})
+                                await bot.reply_to(message , f"It is round {player_list[2]} now , what is your option?")
+                                # add inline keyboard (option : guess , leave , stats)
 
     else:
         await bot.reply_to(message , "You are not inside a room")
