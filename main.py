@@ -166,7 +166,20 @@ async def end(message):
 # leave the room
 @bot.message_handler(commands="leave")
 async def leave(message):
-    pass
+    check_ac(message)
+
+    if check_room(message) != False:
+        myquery = {"_id" : check_room(message)}
+        data = room_db.find(myquery)
+
+        for player_list in data["players"]:
+            await bot.send_message(player_list[1] , f"Player {message.chat.username} has left the room")
+
+        stats_db.update_one({"_id" :message.from_user.id} , {"$set" : {"room" : ""}})
+    
+    else:
+        await bot.reply_to(message , "You are not inside a room")
+
 
 # close the room
 @bot.message_handler(commands="close")
