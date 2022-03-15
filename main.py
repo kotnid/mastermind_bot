@@ -78,14 +78,14 @@ async def join(message):
         if room_db.find(myquery) == 0:
             await bot.reply_to(message , "Invalid room number :< ")
         else:
-            stats_db.update_one({"_id" : message.chat.id } , {"$set" : {"room" : room_num}})
+            stats_db.update_one({"_id" : message.from_user.id } , {"$set" : {"room" : room_num}})
 
             data = room_db.find(myquery)
             for player_list in data["players"]:
                 await bot.send_message(player_list[1] , "{} has joined the room {}".format(message.chat.username , room_num))
 
             stats_db.update_one({"_id" : room_num } , {"$set" : {"room" : room_num}})
-            room_db.update_one({"_id" : room_num} , {"$set" : {"plauers" : data["players"].append([message.chat.username,message.from_user.id])}})
+            room_db.update_one({"_id" : room_num} , {"$set" : {"players" : data["players"].append([message.chat.username,message.from_user.id])}})
             await bot.reply_to(message , f"Room {room_num} joined")
 
 #kick player in room
@@ -171,19 +171,47 @@ async def leave(message):
 # close the room
 @bot.message_handler(commands="close")
 async def close(message):
-    pass
+    check_ac(message)
+
+    if check_room(message) != False:
+        if check_owner(check_room(message)) == message.from_user.id:
+            myquery = {"_id" : check_room(message)}
+            data = room_db.find(myquery)
+
+            for player_list in data["players"]:
+                await bot.send_message(player_list[1] , "Owner has closen the room")
+
+                stats_db.update_one({"_id" : player_list[1]} , {"$set" : {"room" : ""}})
+
+        else:
+           await bot.reply_to(message , "You are not the owner of the room") 
+
+    else:
+        await bot.reply_to(message , "You are not inside a room")
 
 # show room information
 @bot.message_handler(commands="room")
 async def room(message):
-    pass
+    check_ac(message)
+
+    if check_room(message) != False:
+        myquery = check_room(message)
+        data = room_db.find(myquery)
+
+        players = []
+        for player_list in data["player"]:
+            players.append(player_list[0] + " in round " + player_list[2])
+
+        await bot.reply_to(message , "Room {} stats".format(data["_id"]) + "\n" + "owner : ".format(data["owner"]) + "\n" + "picker : " + "\n" + "players : " + players)
+    else:
+        await bot.reply_to(message , "You are not inside a room")    
 
 # show player stats
 @bot.message_handler(commands="stats")
 async def stats(message):
     check_ac(message)
 
-    myquery = {"_id" : message.chat.id}
+    myquery = {"_id" : message.from_user.id}
     data = stats_db.find(myquery)
 
     await bot.reply_to(message , "Player {} stats".format(data["name"]) + "\n" + "wins : {}".format(data["win"]) + "\n" + "Current room : {}".format(data["room"]))
