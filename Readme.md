@@ -6,12 +6,12 @@
 ## Command available: ##
 - /help - show this message  
 - /open - open a room 
-- /join - join a room 
-- /kick - kick player in room 
-- /start - start a game 
+- /join <room num> - join a room 
+- /kick <name> - kick player in room 
+- /start_game <name> - start a game (bot : bot pick , ran : random select) 
 - /guess - guess a code pegs 
 - /end - end a game  
 - /leave - leave a room 
 - /close - close a room 
 - /stats - show player stats 
-- /board - show leaderboard 
+- /board <num> - show leaderboard 
