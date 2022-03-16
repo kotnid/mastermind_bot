@@ -237,13 +237,16 @@ async def start(message):
 
             elif name == "ran":
                 picker = choice(data['players'])
+
+                room_db.update_one({'_id' : data['_id']} , {'$set' : {'picker' : [picker[0] , picker[1]]}})
+
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , '{} is chosen to make the code pegs'.format(picker[0])) 
-                await bot.send_message(picker[1] , 'Pls enter the code pegs')
+                await bot.send_message(picker[1] , 'Pls enter the code pegs by typing /enter')
 
-                markup = ReplyKeyboardMarkup(one_time_keyboard=True)
-                markup.add('Enter', 'Choose another one')
-                bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
+                #markup = ReplyKeyboardMarkup(one_time_keyboard=True)
+                #markup.add('Enter', 'Choose another one')
+                #bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
 
             else:
                 picker = []
@@ -254,14 +257,16 @@ async def start(message):
                 
                 if picker == []:
                     picker = choice(data['players'])
-                
+
+                room_db.update_one({'_id' : data['_id']} , {'$set' : {'picker' : [picker[0] , picker[1]]}})
+
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , '{} is chosen to make the code pegs'.format(picker[0])) 
-                await bot.send_message(picker[1] , 'Pls enter the code pegs')
+                await bot.send_message(picker[1] , 'Pls enter the code pegs by typing /enter ')
 
-                markup = ReplyKeyboardMarkup(one_time_keyboard=True)
-                markup.add('Enter', 'Choose another one')
-                bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
+                #markup = ReplyKeyboardMarkup(one_time_keyboard=True)
+                #markup.add('Enter', 'Choose another one')
+                #bot.register_next_step_handler(bot.send_message(message.chat.id, 'Yes/no?', reply_markup=markup), code_next_step)
                 
 
 
@@ -269,6 +274,41 @@ async def start(message):
 
         else:
             await bot.reply_to(message , 'You are not the owner of the room')
+
+    else:
+        await bot.reply_to(message , 'You are not inside a room')
+
+# enter the code pegs
+@bot.message_handler(commands=['enter'])
+async def enter(message):
+    check_ac(message)
+
+    if check_room(message.from_user.id) != False :
+        myquery = {'_id' : check_room(message.from_user.id)}
+        data = room_db.find_one(myquery)
+
+        if data['picker'][1] == message.from_user.id :
+            emojis = message.text.replace('/enter ' , '').split()
+            input = em_to_num(emojis)
+            
+            info("User {} with id {} enter code pegs {}".format(message.chat.first_name , message.from_user.id  , input))
+
+            if len(input) == 5: 
+                if data['code'] != []:
+                    await bot.reply_to(message , 'You enter code already')
+                    return ''
+
+                room_db.update_one({'_id' : data['_id']} , {'$set' : {'code' : input}})
+
+                for player_list in data['players']:
+                    print(player_list)
+                    await bot.send_message(player_list[1] , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used)")
+
+            else:
+                await bot.reply_to(message , "Invalid input")
+
+        else:
+            await bot.reply_to(message , 'You are not the picker of the room')
 
     else:
         await bot.reply_to(message , 'You are not inside a room')
