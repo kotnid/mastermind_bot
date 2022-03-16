@@ -226,8 +226,8 @@ async def start(message):
             if name == 'bot' or  len(data['players']) == 1 :
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , 'Game start!')
-                    await bot.reply_to(player_list[1] , 'The code pegs will be maken by the bot')
-                    await bot.reply_to(player_list[1] , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
+                    await bot.send_message(player_list[1] , 'The code pegs will be maken by the bot')
+                    await bot.send_message(player_list[1] , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used")
 
                 code = []
                 for i in range(5):
@@ -301,7 +301,6 @@ async def enter(message):
                 room_db.update_one({'_id' : data['_id']} , {'$set' : {'code' : input}})
 
                 for player_list in data['players']:
-                    print(player_list)
                     await bot.send_message(player_list[1] , "guess the code pegs like this : /guess 🟥 🟧 🟨 🟩 🟦 (black and white can't be used)")
 
             else:
@@ -382,6 +381,8 @@ async def guess(message):
                         if message.from_user.id in player_list:
                             info("User {} with id {} in round {} in room {} now ".format(message.chat.first_name , message.from_user.id , player_list[2]+2 , data['_id']))
                             if player_list[2] == 11 :
+                                for player_list in data['players']:
+                                    await bot.send_message(player_list[1] , 'User {} with id {} lost the game :('.format(message.chat.first_name , message.from_user.id))
                                 await bot.reply_to(message , 'Oof it is round 12 already so you lost')
                                 stats_db.update_one({'_id' : data['picker'][1]} , {'$inc' : {'win' : 1}})
                                 room_db.update_one({'_id' : check_room(message.from_user.id) , 'players' : player_list}, { '$set' : {'players.$' : [player_list[0] , player_list[1] , "end"]}})
@@ -451,7 +452,6 @@ async def leave(message):
             data = room_db.find_one(myquery)
 
             picker = choice(data['players'])
-            print(picker)
             for player_list in data['players']:
                 await bot.send_message(player_list[1] , 'Player {} has become new owner'.format(picker[0]))
             
@@ -529,8 +529,6 @@ async def board(message):
     
     msg =  f'Here is the top {number} players'+'\n'+'\n'
     for i in range(int(number)):
-        print(data[i]['name'])
-        print(data[i]['win'])
         msg += '{}. {} with {} wins'.format(i+1 , data[i]['name'] , data[i]['win']) + '\n'
 
     info('User {} with id {} check the leaderboard'.format(str(message.chat.first_name) , str(message.from_user.id)))
