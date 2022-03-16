@@ -222,7 +222,8 @@ async def start(message):
             
             if data['picker'] != []:
                 await bot.reply_to(message , 'The game start already')
-
+                return ''
+                
             if name == 'bot' or  len(data['players']) == 1 :
                 for player_list in data['players']:
                     await bot.send_message(player_list[1] , 'Game start!')
